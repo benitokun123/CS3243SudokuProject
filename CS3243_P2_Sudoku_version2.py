@@ -71,7 +71,8 @@ class Node:
                                                                 self.box_constraints[row//3][col//3])
                 self.matrix[row][col].set_domain(domain)
 
-    #choose the coordinate of the next cell to be assigned
+    # choose the coordinate of the next cell to be assigned
+    # heuristcs implemented: Most Constrained Variable
     def choose_cell_to_assign(self):
         min_domain = 100
         chosen_row = None
