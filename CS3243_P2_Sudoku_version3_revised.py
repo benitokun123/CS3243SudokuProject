@@ -54,7 +54,7 @@ class Cell:
         return self.value
 
 class Node:
-    def __init__(self, matrix, row_constraints, col_constraints, box_constraints):
+    def __init__(self,matrix,row_constraints,col_constraints,box_constraints):
         self.matrix = matrix
         self.row_constraints = row_constraints
         self.col_constraints = col_constraints
@@ -81,28 +81,62 @@ class Node:
                 self.matrix[row][col].set_domain(domain)
 
     #choose the coordinate of the next cell to be assigned
+    #heuristcs implemented: Most Constrained Variable
     def choose_cell_to_assign(self):
+        min_domain = 100
+        chosen_row = None
+        chosen_col = None
         for row in range(9):
             for col in range(9):
                 value = self.matrix[row][col].get_value()
                 if value == 0:
-                    return (row, col)
-        return None
+                    if len(self.matrix[row][col].domain) < min_domain:
+                        min_domain = len(self.matrix[row][col].domain)
+                        chosen_row = row
+                        chosen_col = col
+        return (chosen_row, chosen_col)
+
+    #arrange the values of a cell's domain for later assignment
+    #heuristics implemented: Least Constraining Value
+    def arrange_value_to_assign(self, row, col):
+        value_and_conflict_table = set()
+        for value in self.matrix[row][col].domain:
+            no_of_conflict = self.count_conflict(row, col, value)
+            value_and_conflict_table.add((value, no_of_conflict))
+        sorted(value_and_conflict_table, key=lambda x: x[1], reverse=True)
+        return value_and_conflict_table
+
+    #count the number of conflict that would be caused if a value is assigned at coordinate (row, col)
+    def count_conflict(self, row, col, value):
+        no_of_conflict = 0
+        for i in range(9):
+            if i != row:
+                if self.matrix[i][col].get_value() == 0 and value in self.matrix[i][col].domain:
+                    no_of_conflict += 1
+            if i != col:
+                if self.matrix[row][i].get_value() == 0 and value in self.matrix[row][i].domain:
+                    no_of_conflict += 1
+        for i in range(row//3,row//3 + 3):
+            for j in range(col//3,col//3 + 3):
+                if i != row and j != col:
+                    if self.matrix[i][j].get_value() == 0 and value in self.matrix[i][j].domain:
+                        no_of_conflict += 1
+        return no_of_conflict
+
 
     def assign(self):
         list_of_new_nodes = list()
         (row, col) = self.choose_cell_to_assign()
-        domain = self.matrix[row][col].domain
-        for new_value in domain:
+        domain = self.arrange_value_to_assign(row, col)
+        for new_value, conflict in domain:
             new_node = nodeCopy(self)
             new_node.matrix[row][col].set_value(new_value)
             new_node = new_node.validate_assignment(row, col)
             if new_node:
                 list_of_new_nodes.append(new_node)
-
         return list_of_new_nodes
 
-    #check if the value assignment at coordinate (row,col) is valid
+    #check if the value assignment at coordinate (row,col) will reduce the domain at other cells to empty
     def validate_assignment(self, row, col):
         value = self.matrix[row][col].get_value()
         self.row_constraints[row].remove(value)
@@ -114,6 +148,7 @@ class Node:
             for j in range(9):
                 if self.matrix[i][j].get_value() == 0 and len(self.matrix[i][j].domain) == 0:
                     return None
+
         return self
 
     def is_answer(self):
@@ -137,7 +172,7 @@ class Sudoku(object):
         self.box_constraints = [[set([1, 2, 3, 4, 5, 6, 7, 8, 9]) for i in range(3)] for j in range(3)] #set of values that haven't appeared in each 3x3 box
         
         self.initialize_constraints()
-        
+
     #initialize the value inside each cell with given input
     def initialize_cells(self,puzzle):
         matrix = [[Cell(0) for i in range(9)] for j in range(9)]
@@ -210,8 +245,6 @@ if __name__ == "__main__":
 
     sudoku = Sudoku(puzzle)
     ans = sudoku.solve()
-
-    print(type(ans))
 
     with open(sys.argv[2], 'a') as f:
         for i in range(9):

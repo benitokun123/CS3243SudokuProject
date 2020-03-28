@@ -80,14 +80,21 @@ class Node:
                                                                 self.box_constraints[row//3][col//3])
                 self.matrix[row][col].set_domain(domain)
 
-    #choose the coordinate of the next cell to be assigned
+    # choose the coordinate of the next cell to be assigned
+    # heuristcs implemented: Most Constrained Variable
     def choose_cell_to_assign(self):
+        min_domain = 100
+        chosen_row = None
+        chosen_col = None
         for row in range(9):
             for col in range(9):
                 value = self.matrix[row][col].get_value()
                 if value == 0:
-                    return (row, col)
-        return None
+                    if len(self.matrix[row][col].domain) < min_domain:
+                        min_domain = len(self.matrix[row][col].domain)
+                        chosen_row = row
+                        chosen_col = col
+        return (chosen_row, chosen_col)
 
     def assign(self):
         list_of_new_nodes = list()
@@ -99,7 +106,6 @@ class Node:
             new_node = new_node.validate_assignment(row, col)
             if new_node:
                 list_of_new_nodes.append(new_node)
-
         return list_of_new_nodes
 
     #check if the value assignment at coordinate (row,col) is valid
@@ -114,6 +120,7 @@ class Node:
             for j in range(9):
                 if self.matrix[i][j].get_value() == 0 and len(self.matrix[i][j].domain) == 0:
                     return None
+
         return self
 
     def is_answer(self):
@@ -137,7 +144,7 @@ class Sudoku(object):
         self.box_constraints = [[set([1, 2, 3, 4, 5, 6, 7, 8, 9]) for i in range(3)] for j in range(3)] #set of values that haven't appeared in each 3x3 box
         
         self.initialize_constraints()
-        
+
     #initialize the value inside each cell with given input
     def initialize_cells(self,puzzle):
         matrix = [[Cell(0) for i in range(9)] for j in range(9)]
@@ -155,6 +162,7 @@ class Sudoku(object):
                     self.row_constraints[row].remove(value)
                     self.col_constraints[col].remove(value)
                     self.box_constraints[row//3][col//3].remove(value)
+
 
     # def generate_domains
 
@@ -210,8 +218,6 @@ if __name__ == "__main__":
 
     sudoku = Sudoku(puzzle)
     ans = sudoku.solve()
-
-    print(type(ans))
 
     with open(sys.argv[2], 'a') as f:
         for i in range(9):
