@@ -203,7 +203,7 @@ class Sudoku(object):
         while len(stack) > 0:
             curr_node = stack.pop()
             count += 1
-            if not copy.deepcopy(curr_node).AC_3():
+            if not curr_node.AC_3():
                 continue
             # print(str(curr_node))
             if curr_node.is_answer():
