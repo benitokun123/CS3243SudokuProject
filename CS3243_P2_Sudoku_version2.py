@@ -144,6 +144,7 @@ class Sudoku(object):
             # print(str(curr_node))
             if curr_node.is_answer():
                 end_time = time.time()
+                print("Version: BackTracking Search + Most Constraining Variable")
                 print("Time elapsed " + str(end_time - start_time))
                 print("Number of Node traversed: " + str(count))
                 return self.puzzle
