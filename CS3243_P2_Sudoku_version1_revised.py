@@ -160,17 +160,20 @@ class Sudoku(object):
 
     def solve(self):
         # TODO: Write your code here
-        start_time = time.clock()
+        start_time = time.time()
         start_node = Node(self.matrix, self.row_constraints, self.col_constraints, self.box_constraints)
         stack = list()
         stack.append(start_node)
+        count = 0
 
         while len(stack) > 0:
             curr_node = stack.pop()
-            print(str(curr_node))
+            count += 1
+            # print(str(curr_node))
             if curr_node.is_answer():
-                end_time = time.clock()
+                end_time = time.time()
                 print("Time elapsed " + str(end_time - start_time))
+                print("Number of Node traversed: " + str(count))
                 return curr_node.matrix
             list_of_new_nodes = curr_node.assign()
             while len(list_of_new_nodes) > 0:

@@ -25,7 +25,7 @@ class Cell:
 
 class Node:
     def __init__(self,puzzle):
-        self.matrix = self.initialize_cells(puzzle)
+        self.matrix = self.initialize_cells(puzzle);
 
         self.row_constraints = [set([1, 2, 3, 4, 5, 6, 7, 8, 9]) for i in range(9)] #set of values that haven't appeared in each row
         self.col_constraints = [set([1, 2, 3, 4, 5, 6, 7, 8, 9]) for i in range(9)] #set of values that haven't appeared in each collumn
@@ -72,56 +72,19 @@ class Node:
                 self.matrix[row][col].set_domain(domain)
 
     #choose the coordinate of the next cell to be assigned
-    #heuristcs implemented: Most Constrained Variable
     def choose_cell_to_assign(self):
-        min_domain = 100
-        chosen_row = None
-        chosen_col = None
         for row in range(9):
             for col in range(9):
                 value = self.matrix[row][col].get_value()
                 if value == 0:
-                    if len(self.matrix[row][col].domain) < min_domain:
-                        min_domain = len(self.matrix[row][col].domain)
-                        chosen_row = row
-                        chosen_col = col
-        return (chosen_row, chosen_col)
-
-    #arrange the values of a cell's domain for later assignment
-    #heuristics implemented: Least Constraining Value
-    def arrange_value_to_assign(self, row, col):
-        value_and_conflict_table = set()
-        for value in self.matrix[row][col].domain:
-            no_of_conflict = self.count_conflict(row, col, value)
-            value_and_conflict_table.add((value, no_of_conflict))
-        sorted(value_and_conflict_table, key=lambda x: x[1], reverse=True)
-        return value_and_conflict_table
-
-    #count the number of conflict that would be caused if a value is assigned at coordinate (row, col)
-    def count_conflict(self, row, col, value):
-        no_of_conflict = 0
-        for i in range(9):
-            if i != row:
-                if self.matrix[i][col].get_value() == 0 and value in self.matrix[i][col].domain:
-                    no_of_conflict += 1
-            if i != col:
-                if self.matrix[row][i].get_value() == 0 and value in self.matrix[row][i].domain:
-                    no_of_conflict += 1
-        box_row = row // 3 * 3
-        box_col = col // 3 * 3
-        for i in range(box_row, box_row + 3):
-            for j in range(box_col, box_col + 3):
-                if i != row and j != col:
-                    if self.matrix[i][j].get_value() == 0 and value in self.matrix[i][j].domain:
-                        no_of_conflict += 1
-        return no_of_conflict
-
+                    return (row, col)
+        return None
 
     def assign(self):
         list_of_new_nodes = list()
         (row, col) = self.choose_cell_to_assign()
-        domain = self.arrange_value_to_assign(row, col)
-        for new_value, conflict in domain:
+        domain = self.matrix[row][col].domain
+        for new_value in domain:
             new_node = copy.deepcopy(self)
             new_node.matrix[row][col].set_value(new_value)
             new_node = new_node.validate_assignment(row, col)
@@ -129,7 +92,7 @@ class Node:
                 list_of_new_nodes.append(new_node)
         return list_of_new_nodes
 
-    #check if the value assignment at coordinate (row,col) will reduce the domain at other cells to empty
+    #check if the value assignment at coordinate (row,col) is valid
     def validate_assignment(self, row, col):
         value = self.matrix[row][col].get_value()
         self.row_constraints[row].remove(value)
@@ -141,8 +104,78 @@ class Node:
             for j in range(9):
                 if self.matrix[i][j].get_value() == 0 and len(self.matrix[i][j].domain) == 0:
                     return None
-
         return self
+
+    def find_neighbors(self,row,col):
+        neighbors = list()
+        for i in range(9):
+            if i != row and self.matrix[i][col].value == 0:
+                neighbors.append((i,col))
+            if i != col and self.matrix[row][i].value == 0:
+                neighbors.append((row,i))
+        box_row = row // 3 * 3
+        box_col = col // 3 * 3
+        for i in range(box_row, box_row + 3):
+            for j in range(box_col, box_col + 3):
+                if i != row and j != col and self.matrix[i][j] == 0:
+                    neighbors.append((i,j))
+        return neighbors
+
+    def intitializeAC3_queue(self):
+        queue = list()
+        for row in range(9):
+            for col in range(9):
+                if self.matrix[row][col].value != 0:
+                    continue
+                neighbors = self.find_neighbors(row, col)
+                for neighbor_row, neighbor_col in neighbors:
+                    queue.append(((row, col), (neighbor_row, neighbor_col)))
+        return queue
+
+    def revise(self, row, col, neighbor_row, neighbor_col):
+        domain1 = self.matrix[row][col].domain
+        domain2 = self.matrix[neighbor_row][neighbor_col].domain
+        inconsistent_values = set()
+        revise = False
+        for value1 in domain1:
+            consistant = False
+            for value2 in domain2:
+                if value2 != value1:
+                    consistant = True
+                    break
+            if not consistant:
+                inconsistent_values.add(value1)
+                revise = True
+
+        for value in inconsistent_values:
+            domain1.remove(value)
+        return revise
+
+    def update_queue(self, queue, row, col, neighbor_row, neighbor_col):
+        for i in range(9):
+            for j in range(9):
+                if i == row and (i ,j) != (row, col) and (i, j) != (neighbor_row, neighbor_col) and self.matrix[i][j].value == 0:
+                    queue.append(((i, j), (row, col)))
+                if j == col and (i ,j) != (row, col) and (i, j) != (neighbor_row, neighbor_col) and self.matrix[i][j].value == 0:
+                    queue.append(((i, j), (row, col)))
+
+        box_row = row // 3 * 3
+        box_col = col // 3 * 3
+        for i in range(box_row, box_row + 3):
+            for j in range(box_col, box_col + 3):
+                if (i, j) != (row, col) and (i, j) != (neighbor_row, neighbor_col) and self.matrix[i][j].value == 0:
+                    queue.append(((i, j), (row, col)))
+
+    def AC_3(self):
+        queue = self.intitializeAC3_queue()
+        while queue:
+            (row, col), (neighbor_row, neighbor_col) = queue.pop(0)
+            if self.revise(row, col, neighbor_row, neighbor_col):
+                if len(self.matrix[row][col].domain) == 0:
+                    return False
+                self.update_queue(queue, row, col, neighbor_row, neighbor_col)
+            # print(str(row) + " " + str(col) + " " + str(neighbor_row) + " " + str(neighbor_col))
+        return True
 
     def is_answer(self):
         for row in range(9):
@@ -167,10 +200,11 @@ class Sudoku(object):
         stack = list()
         stack.append(start_node)
         count = 0
-
         while len(stack) > 0:
             curr_node = stack.pop()
             count += 1
+            if not copy.deepcopy(curr_node).AC_3():
+                continue
             # print(str(curr_node))
             if curr_node.is_answer():
                 end_time = time.time()
@@ -180,7 +214,7 @@ class Sudoku(object):
             list_of_new_nodes = curr_node.assign()
             while len(list_of_new_nodes) > 0:
                 stack.append(list_of_new_nodes.pop())
-        # self.ans is a list of lists
+        # # self.ans is a list of lists
         return self.puzzle
 
     # you may add more classes/functions if you think is useful

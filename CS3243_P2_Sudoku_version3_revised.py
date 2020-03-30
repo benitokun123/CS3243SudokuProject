@@ -59,7 +59,7 @@ class Node:
         self.row_constraints = row_constraints
         self.col_constraints = col_constraints
         self.box_constraints = box_constraints
-        self.domain = self.initialize_domains()
+        self.initialize_domains()
 
     def __hash__(self):
         return hash(str(self.matrix))
@@ -116,8 +116,10 @@ class Node:
             if i != col:
                 if self.matrix[row][i].get_value() == 0 and value in self.matrix[row][i].domain:
                     no_of_conflict += 1
-        for i in range(row//3,row//3 + 3):
-            for j in range(col//3,col//3 + 3):
+        box_row = row // 3 * 3
+        box_col = col // 3 * 3
+        for i in range(box_row, box_row + 3):
+            for j in range(box_col, box_col + 3):
                 if i != row and j != col:
                     if self.matrix[i][j].get_value() == 0 and value in self.matrix[i][j].domain:
                         no_of_conflict += 1
@@ -195,17 +197,20 @@ class Sudoku(object):
 
     def solve(self):
         # TODO: Write your code here
-        start_time = time.clock()
+        start_time = time.time()
         start_node = Node(self.matrix, self.row_constraints, self.col_constraints, self.box_constraints)
         stack = list()
         stack.append(start_node)
+        count = 0
 
         while len(stack) > 0:
             curr_node = stack.pop()
-            print(str(curr_node))
+            count += 1
+            # print(str(curr_node))
             if curr_node.is_answer():
-                end_time = time.clock()
+                end_time = time.time()
                 print("Time elapsed " + str(end_time - start_time))
+                print("Number of Node traversed: " + str(count))
                 return curr_node.matrix
             list_of_new_nodes = curr_node.assign()
             while len(list_of_new_nodes) > 0:
