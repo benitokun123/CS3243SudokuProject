@@ -55,18 +55,18 @@ class SudokuPuzzle:
 
     # find all unassigned neighbor cells of the cell at coordinate (row, col)
     def find_neighbors(self, row, col):
-        neighbors = list()
+        neighbors = set()
         for i in range(9):
             if i != row and self.matrix[i][col].value == 0:
-                neighbors.append((i, col))
+                neighbors.add((i, col))
             if i != col and self.matrix[row][i].value == 0:
-                neighbors.append((row, i))
+                neighbors.add((row, i))
         box_row = row // 3 * 3
         box_col = col // 3 * 3
         for i in range(box_row, box_row + 3):
             for j in range(box_col, box_col + 3):
                 if i != row and j != col and self.matrix[i][j].value == 0:
-                    neighbors.append((i, j))
+                    neighbors.add((i, j))
         return neighbors
 
     #choose the coordinate of the next cell to be assigned
@@ -83,10 +83,11 @@ class SudokuPuzzle:
                         chosen_col = col
         return (chosen_row, chosen_col)
 
-    # assign a value to a cell, update domains, and record domain changes
+    # assign a value to a cell, update domains and neighbors set, and record domain changes
     def assign(self, row, col, new_value, domain_changes):
         self.matrix[row][col].value = new_value
         for i, j in self.matrix[row][col].neighbors:
+            self.matrix[i][j].neighbors.remove((row, col))
             if new_value in self.matrix[i][j].domain and self.matrix[i][j].value == 0:
                 self.matrix[i][j].domain.remove(new_value)
                 if domain_changes.has_key((i, j)):
@@ -95,9 +96,11 @@ class SudokuPuzzle:
                     domain_changes[(i, j)] = set([new_value])
         self.AC_3(domain_changes)
 
-    # unassign a value from a cell and update domains and constraints
+    # unassign a value from a cell and revert changes to domains and neighbors set
     def undo_assign(self, row, col, domain_changes):
         self.matrix[row][col].value = 0
+        for i, j in self.matrix[row][col].neighbors:
+            self.matrix[i][j].neighbors.add((row, col))
         self.undoAC_3(domain_changes)
 
     # check if the current sudoku state is solvable
