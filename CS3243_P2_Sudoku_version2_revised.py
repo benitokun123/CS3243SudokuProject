@@ -11,30 +11,9 @@ def setCopy(values):
         set_copy.add(value)
     return set_copy
 
-def cellCopy(cell):
-    cell_copy = Cell(cell.value)
-    return cell_copy
-
-def matrixCopy(matrix):
-    matrix_copy = [[cellCopy(matrix[i][j]) for j in xrange(9)] for i in xrange(9)]
-    return matrix_copy
-
 def puzzleCopy(puzzle):
     puzzle_copy = [[puzzle[i][j] for j in xrange(9)]for i in xrange(9)]
     return puzzle_copy
-
-def constraintsCopy(constraints):
-    constraints_copy = [setCopy(constraints[i]) for i in xrange(9)]
-    return constraints_copy
-
-def boxConstrainsCopy(box_constraints):
-    box_constraints_copy = [[setCopy(box_constraints[i][j]) for j in xrange(3)] for i in xrange(3)]
-    return box_constraints_copy
-
-def nodeCopy(node):
-    new_node = Node(matrixCopy(node.matrix), constraintsCopy(node.row_constraints),
-                    constraintsCopy(node.col_constraints), boxConstrainsCopy(node.box_constraints))
-    return new_node
 
 class Cell:
     def __init__(self,value):
@@ -44,22 +23,14 @@ class Cell:
     def __str__(self):
         return str(self.value)
 
-    def set_value(self,value):
-        self.value = value
-
-    def set_domain(self,domain):
-        self.domain = domain
-
-    def get_value(self):
-        return self.value
-
-class Node:
+class SudokuPuzzle:
     def __init__(self, matrix, row_constraints, col_constraints, box_constraints):
         self.matrix = matrix
         self.row_constraints = row_constraints
         self.col_constraints = col_constraints
         self.box_constraints = box_constraints
-        self.domain = self.initialize_domains()
+        self.initialize_domains()
+        self.count = 0
 
     def __hash__(self):
         return hash(str(self.matrix))
@@ -78,7 +49,7 @@ class Node:
             for col in range(9):
                 domain = self.row_constraints[row].intersection(self.col_constraints[col],
                                                                 self.box_constraints[row//3][col//3])
-                self.matrix[row][col].set_domain(domain)
+                self.matrix[row][col].domain = domain
 
     # choose the coordinate of the next cell to be assigned
     # heuristcs implemented: Most Constrained Variable
@@ -88,46 +59,57 @@ class Node:
         chosen_col = None
         for row in range(9):
             for col in range(9):
-                value = self.matrix[row][col].get_value()
-                if value == 0:
+                if self.matrix[row][col].value == 0:
                     if len(self.matrix[row][col].domain) < min_domain:
                         min_domain = len(self.matrix[row][col].domain)
                         chosen_row = row
                         chosen_col = col
         return (chosen_row, chosen_col)
 
-    def assign(self):
-        list_of_new_nodes = list()
-        (row, col) = self.choose_cell_to_assign()
-        domain = self.matrix[row][col].domain
-        for new_value in domain:
-            new_node = nodeCopy(self)
-            new_node.matrix[row][col].set_value(new_value)
-            new_node = new_node.validate_assignment(row, col)
-            if new_node:
-                list_of_new_nodes.append(new_node)
-        return list_of_new_nodes
-
-    #check if the value assignment at coordinate (row,col) is valid
-    def validate_assignment(self, row, col):
-        value = self.matrix[row][col].get_value()
-        self.row_constraints[row].remove(value)
-        self.col_constraints[col].remove(value)
-        self.box_constraints[row//3][col//3].remove(value)
+    #assign a value to a cell and update domains and constraints
+    def assign(self, row, col, new_value):
+        self.matrix[row][col].value = new_value
+        self.row_constraints[row].remove(new_value)
+        self.col_constraints[col].remove(new_value)
+        self.box_constraints[row // 3][col // 3].remove(new_value)
         self.initialize_domains()
 
+    #unassign a value from a cell and update domains and constraints
+    def undo_assign(self, row, col, new_value):
+        self.matrix[row][col].value = 0
+        self.row_constraints[row].add(new_value)
+        self.col_constraints[col].add(new_value)
+        self.box_constraints[row // 3][col // 3].add(new_value)
+        self.initialize_domains()
+
+    #check if the value assignment at coordinate (row,col) is valid
+    def is_valid(self):
         for i in range(9):
             for j in range(9):
-                if self.matrix[i][j].get_value() == 0 and len(self.matrix[i][j].domain) == 0:
-                    return None
+                if self.matrix[i][j].value == 0 and len(self.matrix[i][j].domain) == 0:
+                    return False
+        return True
 
-        return self
+    def backtrack_search(self):
+        self.count += 1
+        if self.is_answer():
+            return True
+        if not self.is_valid():
+            return False
+        (row, col) = self.choose_cell_to_assign()
+        domain_copy = self.matrix[row][col].domain.copy()
+        for new_value in domain_copy:
+            self.assign(row, col, new_value)
+            result = self.backtrack_search()
+            if result is True:
+                return True
+            else:
+                self.undo_assign(row, col, new_value)
 
     def is_answer(self):
         for row in range(9):
             for col in range(9):
-                value = self.matrix[row][col].get_value()
-                if value == 0:
+                if self.matrix[row][col].value == 0:
                     return False
         return True
 
@@ -150,14 +132,14 @@ class Sudoku(object):
         matrix = [[Cell(0) for i in range(9)] for j in range(9)]
         for row in range(9):
             for col in range(9):
-                matrix[row][col].set_value(puzzle[row][col])
+                matrix[row][col].value = puzzle[row][col]
         return matrix
 
     #initialize the row, collumn, and 3x3 box constraints of the Sudoku puzzle
     def initialize_constraints(self):
         for row in range(9):
             for col in range(9):
-                value = self.matrix[row][col].get_value()
+                value = self.matrix[row][col].value
                 if value != 0:
                     self.row_constraints[row].remove(value)
                     self.col_constraints[col].remove(value)
@@ -169,26 +151,13 @@ class Sudoku(object):
     def solve(self):
         # TODO: Write your code here
         start_time = time.time()
-        start_node = Node(self.matrix, self.row_constraints, self.col_constraints, self.box_constraints)
-        stack = list()
-        stack.append(start_node)
-        count = 0
-
-        while len(stack) > 0:
-            curr_node = stack.pop()
-            count += 1
-            # print(str(curr_node))
-            if curr_node.is_answer():
-                end_time = time.time()
-                print("Version: BackTracking Search + Most Constraining Variable")
-                print("Time elapsed " + str(end_time - start_time))
-                print("Number of Node traversed: " + str(count))
-                return curr_node.matrix
-            list_of_new_nodes = curr_node.assign()
-            while len(list_of_new_nodes) > 0:
-                stack.append(list_of_new_nodes.pop())
-        # self.ans is a list of lists
-        return self.puzzle
+        sudokuPuzzle = SudokuPuzzle(self.matrix, self.row_constraints, self.col_constraints, self.box_constraints)
+        sudokuPuzzle.backtrack_search()
+        end_time = time.time()
+        print("Version: BackTracking Search + Minimum Remaining Values Heuristics")
+        print("Time elapsed " + str(end_time - start_time))
+        print("Number of states traversed: " + str(sudokuPuzzle.count))
+        return sudokuPuzzle.matrix
 
     # you may add more classes/functions if you think is useful
     # However, ensure all the classes/functions are in this file ONLY
