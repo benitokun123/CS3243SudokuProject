@@ -19,7 +19,7 @@ class Cell:
         return str(self.value)
 
 class SudokuPuzzle:
-    def __init__(self, matrix, row_constraints, col_constraints, box_constraints):
+    def __init__(self, matrix, row_constraints, col_constraints, box_constraints, depth):
         self.matrix = matrix
         self.row_constraints = row_constraints
         self.col_constraints = col_constraints
@@ -27,6 +27,7 @@ class SudokuPuzzle:
         self.initialize_domains()
         self.initialize_neighbors()
         self.count = 0
+        self.depth = depth
 
     def __hash__(self):
         return hash(str(self.matrix))
@@ -85,7 +86,10 @@ class SudokuPuzzle:
 
     # assign a value to a cell, update domains and neighbors set, and record domain changes
     def assign(self, row, col, new_value, domain_changes):
+        self.depth += 1
         self.matrix[row][col].value = new_value
+
+        # update domains and neighbor set for the neighbor cells of (row, col)
         for i, j in self.matrix[row][col].neighbors:
             self.matrix[i][j].neighbors.remove((row, col))
             if new_value in self.matrix[i][j].domain and self.matrix[i][j].value == 0:
@@ -94,10 +98,14 @@ class SudokuPuzzle:
                     domain_changes[(i, j)].add(new_value)
                 else:
                     domain_changes[(i, j)] = set([new_value])
-        self.AC_3(domain_changes)
+
+        # only runs AC_3 when at least 65 cells have been assigned value
+        if self.depth >= 65:
+            self.AC_3(domain_changes)
 
     # unassign a value from a cell and revert changes to domains and neighbors set
     def undo_assign(self, row, col, domain_changes):
+        self.depth -= 1
         self.matrix[row][col].value = 0
         for i, j in self.matrix[row][col].neighbors:
             self.matrix[i][j].neighbors.add((row, col))
@@ -195,6 +203,8 @@ class Sudoku(object):
         self.puzzle = puzzle  # self.puzzle is a list of lists
         self.ans = puzzleCopy(puzzle)  # self.ans is a list of lists
 
+        self.depth = 0 # depth represent the number of cells that have been assigned value
+
         self.matrix = self.initialize_cells(self.puzzle)
 
         self.row_constraints = [set([1, 2, 3, 4, 5, 6, 7, 8, 9]) for i in
@@ -220,6 +230,7 @@ class Sudoku(object):
             for col in range(9):
                 value = self.matrix[row][col].value
                 if value != 0:
+                    self.depth += 1
                     self.row_constraints[row].remove(value)
                     self.col_constraints[col].remove(value)
                     self.box_constraints[row // 3][col // 3].remove(value)
@@ -227,10 +238,10 @@ class Sudoku(object):
     def solve(self):
         # TODO: Write your code here
         start_time = time.time()
-        sudokuPuzzle = SudokuPuzzle(self.matrix, self.row_constraints, self.col_constraints, self.box_constraints)
+        sudokuPuzzle = SudokuPuzzle(self.matrix, self.row_constraints, self.col_constraints, self.box_constraints, self.depth)
         sudokuPuzzle.backtrack_search()
         end_time = time.time()
-        print("Version: BackTracking Search + AC3 + Minimum Remaining Values")
+        print("Version: BackTracking Search + Reduced AC3 + Minimum Remaining Values")
         print("Time elapsed " + str(end_time - start_time))
         print("Number of states traversed: " + str(sudokuPuzzle.count))
         return sudokuPuzzle.matrix

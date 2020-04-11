@@ -76,7 +76,7 @@ class SudokuPuzzle:
                 if self.matrix[row][col].value == 0:
                     return (row, col)
         return None
-    
+
     # assign a value to a cell, update domains and neighbors set, and record domain changes
     def assign(self, row, col, new_value, domain_changes):
         self.matrix[row][col].value = new_value
@@ -118,6 +118,7 @@ class SudokuPuzzle:
         return queue
 
     # Revise the domains of two cells with the arc between (row, col) and (neighbor_row, neighbor_col)
+    # Pre-condition: domain of (neighbor_row, neighbor_col) has only 1 value
     def revise(self, row, col, neighbor_row, neighbor_col, domain_changes):
         domain1 = self.matrix[row][col].domain
         domain2 = self.matrix[neighbor_row][neighbor_col].domain
