@@ -145,6 +145,8 @@ class SudokuPuzzle:
         domain1 = self.matrix[row][col].domain
         domain2 = self.matrix[neighbor_row][neighbor_col].domain
         revise = False
+        if len(domain2) != 1:
+            return False
         for value in domain2:
             if value in domain1:
                 domain1.remove(value)
@@ -160,8 +162,7 @@ class SudokuPuzzle:
         for (i, j) in self.matrix[row][col].neighbors:
             if (i, j) != (row, col) \
                     and (i, j) != (neighbor_row, neighbor_col) \
-                    and self.matrix[i][j].value == 0 \
-                    and len(self.matrix[i][j].domain) == 1:
+                    and self.matrix[i][j].value == 0:
                 queue.append(((i, j), (row, col)))
 
     def AC_3(self, domain_changes):

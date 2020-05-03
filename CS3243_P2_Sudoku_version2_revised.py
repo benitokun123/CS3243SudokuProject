@@ -30,7 +30,7 @@ class SudokuPuzzle:
         self.col_constraints = col_constraints
         self.box_constraints = box_constraints
         self.initialize_domains()
-        self.count = 0
+        self.count = 0 # number of states traversed
 
     def __hash__(self):
         return hash(str(self.matrix))
@@ -82,7 +82,7 @@ class SudokuPuzzle:
         self.box_constraints[row // 3][col // 3].add(new_value)
         self.initialize_domains()
 
-    #check if the value assignment at coordinate (row,col) is valid
+    #check if the curent Sudoku puzzle is valid
     def is_valid(self):
         for i in range(9):
             for j in range(9):

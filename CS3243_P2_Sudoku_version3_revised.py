@@ -16,9 +16,10 @@ def puzzleCopy(puzzle):
     return puzzle_copy
 
 class Cell:
-    def __init__(self,value):
+    def __init__(self, value):
         self.value = value
         self.domain = set()
+        self.neighbors = set()
 
     def __str__(self):
         return str(self.value)
@@ -30,6 +31,7 @@ class SudokuPuzzle:
         self.col_constraints = col_constraints
         self.box_constraints = box_constraints
         self.initialize_domains()
+        self.initialize_neighbors()
         self.count = 0
 
     def __hash__(self):
@@ -50,6 +52,28 @@ class SudokuPuzzle:
                 domain = self.row_constraints[row].intersection(self.col_constraints[col],
                                                                 self.box_constraints[row//3][col//3])
                 self.matrix[row][col].domain = domain
+
+    # initialize the neighbors of each cell inside the Sudoku puzzle
+    def initialize_neighbors(self):
+        for row in range(9):
+            for col in range(9):
+                self.matrix[row][col].neighbors = self.find_neighbors(row, col)
+
+    # find all unassigned neighbor cells of the cell at coordinate (row, col)
+    def find_neighbors(self, row, col):
+        neighbors = set()
+        for i in range(9):
+            if i != row and self.matrix[i][col].value == 0:
+                neighbors.add((i, col))
+            if i != col and self.matrix[row][i].value == 0:
+                neighbors.add((row, i))
+        box_row = row // 3 * 3
+        box_col = col // 3 * 3
+        for i in range(box_row, box_row + 3):
+            for j in range(box_col, box_col + 3):
+                if i != row and j != col and self.matrix[i][j].value == 0:
+                    neighbors.add((i, j))
+        return neighbors
 
     #choose the coordinate of the next cell to be assigned
     #heuristcs implemented: Most Constrained Variable
@@ -80,20 +104,9 @@ class SudokuPuzzle:
     #count the number of conflict that would be caused if a value is assigned at coordinate (row, col)
     def count_conflict(self, row, col, value):
         no_of_conflict = 0
-        for i in range(9):
-            if i != row:
-                if self.matrix[i][col].value == 0 and value in self.matrix[i][col].domain:
-                    no_of_conflict += 1
-            if i != col:
-                if self.matrix[row][i].value == 0 and value in self.matrix[row][i].domain:
-                    no_of_conflict += 1
-        box_row = row // 3 * 3
-        box_col = col // 3 * 3
-        for i in range(box_row, box_row + 3):
-            for j in range(box_col, box_col + 3):
-                if i != row and j != col:
-                    if self.matrix[i][j].value == 0 and value in self.matrix[i][j].domain:
-                        no_of_conflict += 1
+        for (i, j) in self.matrix[row][col].neighbors:
+            if value in self.matrix[i][j].domain:
+                no_of_conflict += 1
         return no_of_conflict
 
     #assign a value to a cell and update domains and constraints
@@ -102,6 +115,10 @@ class SudokuPuzzle:
         self.row_constraints[row].remove(new_value)
         self.col_constraints[col].remove(new_value)
         self.box_constraints[row // 3][col // 3].remove(new_value)
+
+        for i, j in self.matrix[row][col].neighbors:
+            self.matrix[i][j].neighbors.remove((row, col))
+
         self.initialize_domains()
 
     #unassign a value from a cell and update domains and constraints
@@ -110,6 +127,10 @@ class SudokuPuzzle:
         self.row_constraints[row].add(new_value)
         self.col_constraints[col].add(new_value)
         self.box_constraints[row // 3][col // 3].add(new_value)
+
+        for i, j in self.matrix[row][col].neighbors:
+            self.matrix[i][j].neighbors.add((row, col))
+
         self.initialize_domains()
 
     #check if the value assignment at coordinate (row,col) is valid
