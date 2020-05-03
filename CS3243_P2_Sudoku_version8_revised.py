@@ -111,8 +111,8 @@ class SudokuPuzzle:
                 else:
                     domain_changes[(i, j)] = set([new_value])
 
-        # only runs AC_3 at after every 10 assignments
-        if self.depth >= 40 and self.no_of_assignment % 10 == 0:
+        # only runs AC_3 at after every 20 assignments
+        if self.no_of_assignment % 20 == 0:
             self.AC_3(domain_changes)
 
     # unassign a value from a cell and revert changes to domains and neighbors set
