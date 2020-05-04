@@ -5,6 +5,14 @@ import time
 # Running script: given code can be run with the command:
 # python file.py, ./path/to/init_state.txt ./output/output.txt
 
+# Variant (C): Most Constrained Variable with Most Constraining Variable + Least Constraining Value + Forward Checking
+
+def setCopy(values):
+    set_copy = set()
+    for value in values:
+        set_copy.add(value)
+    return set_copy
+
 def puzzleCopy(puzzle):
     puzzle_copy = [[puzzle[i][j] for j in xrange(9)]for i in xrange(9)]
     return puzzle_copy
@@ -19,17 +27,14 @@ class Cell:
         return str(self.value)
 
 class SudokuPuzzle:
-    def __init__(self, matrix, row_constraints, col_constraints, box_constraints, depth):
+    def __init__(self,matrix,row_constraints,col_constraints,box_constraints):
         self.matrix = matrix
         self.row_constraints = row_constraints
         self.col_constraints = col_constraints
         self.box_constraints = box_constraints
         self.initialize_domains()
         self.initialize_neighbors()
-        self.AC_3(dict())
         self.count = 0
-        self.no_of_assignment = 0
-        self.depth = depth
 
     def __hash__(self):
         return hash(str(self.matrix))
@@ -72,8 +77,8 @@ class SudokuPuzzle:
                     neighbors.add((i, j))
         return neighbors
 
-    # choose the coordinate of the next cell to be assigned
-    # heuristics: Most Constrained Variable and Most Constraining Variable
+    #choose the coordinate of the next cell to be assigned
+    #heuristcs implemented: Most Constrained Variable
     def choose_cell_to_assign(self):
         min_domain = 100
         max_degree = -1
@@ -95,97 +100,55 @@ class SudokuPuzzle:
                             chosen_col = col
         return (chosen_row, chosen_col)
 
-    # assign a value to a cell, update domains and neighbors set, and record domain changes
-    def assign(self, row, col, new_value, domain_changes):
-        self.no_of_assignment += 1
-        self.depth += 1
-        self.matrix[row][col].value = new_value
+    #arrange the values of a cell's domain for later assignment
+    #heuristics implemented: Least Constraining Value
+    def arrange_value_to_assign(self, row, col):
+        value_and_conflict_table = set()
+        for value in self.matrix[row][col].domain:
+            no_of_conflict = self.count_conflict(row, col, value)
+            value_and_conflict_table.add((value, no_of_conflict))
+        sorted(value_and_conflict_table, key=lambda x: x[1], reverse=True)
+        return value_and_conflict_table
 
-        # update domains and neighbor set for the neighbor cells of (row, col)
+    #count the number of conflict that would be caused if a value is assigned at coordinate (row, col)
+    def count_conflict(self, row, col, value):
+        no_of_conflict = 0
+        for (i, j) in self.matrix[row][col].neighbors:
+            if value in self.matrix[i][j].domain:
+                no_of_conflict += 1
+        return no_of_conflict
+
+    #assign a value to a cell and update domains and constraints
+    def assign(self, row, col, new_value):
+        self.matrix[row][col].value = new_value
+        self.row_constraints[row].remove(new_value)
+        self.col_constraints[col].remove(new_value)
+        self.box_constraints[row // 3][col // 3].remove(new_value)
+
         for i, j in self.matrix[row][col].neighbors:
             self.matrix[i][j].neighbors.remove((row, col))
-            if new_value in self.matrix[i][j].domain and self.matrix[i][j].value == 0:
-                self.matrix[i][j].domain.remove(new_value)
-                if domain_changes.has_key((i, j)):
-                    domain_changes[(i, j)].add(new_value)
-                else:
-                    domain_changes[(i, j)] = set([new_value])
 
-        # only runs AC_3 at after every 20 assignments
-        if self.no_of_assignment % 20 == 0 or self.depth = 80:
-            self.AC_3(domain_changes)
+        self.initialize_domains()
 
-    # unassign a value from a cell and revert changes to domains and neighbors set
-    def undo_assign(self, row, col, domain_changes):
-        self.no_of_assignment -= 1
-        self.depth -= 1
+    #unassign a value from a cell and update domains and constraints
+    def undo_assign(self, row, col, new_value):
         self.matrix[row][col].value = 0
+        self.row_constraints[row].add(new_value)
+        self.col_constraints[col].add(new_value)
+        self.box_constraints[row // 3][col // 3].add(new_value)
+
         for i, j in self.matrix[row][col].neighbors:
             self.matrix[i][j].neighbors.add((row, col))
-        self.undo_domain_changes(domain_changes)
 
-    # check if the current sudoku state is solvable
+        self.initialize_domains()
+
+    #check if the value assignment at coordinate (row,col) is valid
     def is_valid(self):
         for i in range(9):
             for j in range(9):
                 if self.matrix[i][j].value == 0 and len(self.matrix[i][j].domain) == 0:
                     return False
         return True
-
-    # Initialize every arc among unassigned cells
-    def intitializeAC3_queue(self):
-        queue = list()
-        for row in range(9):
-            for col in range(9):
-                if self.matrix[row][col].value != 0:
-                    continue
-                for neighbor_row, neighbor_col in self.matrix[row][col].neighbors:
-                    if len(self.matrix[neighbor_row][neighbor_col].domain) == 1 and self.matrix[row][col].value == 0:
-                        queue.append(((row, col), (neighbor_row, neighbor_col)))
-        return queue
-
-    # Revise the domains of two cells with the arc between (row, col) and (neighbor_row, neighbor_col)
-    # Pre-condition: domain of (neighbor_row, neighbor_col) has only 1 value
-    def revise(self, row, col, neighbor_row, neighbor_col, domain_changes):
-        domain1 = self.matrix[row][col].domain
-        domain2 = self.matrix[neighbor_row][neighbor_col].domain
-        revise = False
-        if len(domain2) != 1:
-            return False
-        for value in domain2:
-            if value in domain1:
-                domain1.remove(value)
-                if domain_changes.has_key((row, col)):
-                    domain_changes[(row, col)].add(value)
-                else:
-                    domain_changes[(row, col)] = set([value])
-                revise = True
-        return revise
-
-    # Update the queue with more arcs
-    def update_queue(self, queue, row, col, neighbor_row, neighbor_col):
-        for (i, j) in self.matrix[row][col].neighbors:
-            if (i, j) != (row, col) \
-                    and (i, j) != (neighbor_row, neighbor_col) \
-                    and self.matrix[i][j].value == 0:
-                queue.append(((i, j), (row, col)))
-
-    def AC_3(self, domain_changes):
-        queue = self.intitializeAC3_queue()
-        while queue:
-            (row, col), (neighbor_row, neighbor_col) = queue.pop(0)
-            if self.revise(row, col, neighbor_row, neighbor_col, domain_changes):
-                if len(self.matrix[row][col].domain) == 0:
-                    return False
-                if len(self.matrix[row][col].domain) == 1:
-                    self.update_queue(queue, row, col, neighbor_row, neighbor_col)
-            # print(str(row) + " " + str(col) + " " + str(neighbor_row) + " " + str(neighbor_col))
-        return True
-
-    def undo_domain_changes(self, domain_changes):
-        for (row, col), changes in domain_changes.items():
-            while changes:
-                self.matrix[row][col].domain.add(changes.pop())
 
     def backtrack_search(self):
         self.count += 1
@@ -194,15 +157,14 @@ class SudokuPuzzle:
         if not self.is_valid():
             return False
         (row, col) = self.choose_cell_to_assign()
-        domain_copy = self.matrix[row][col].domain.copy()
-        for new_value in domain_copy:
-            domain_changes = dict()
-            self.assign(row, col, new_value, domain_changes)
+        domain_copy = self.arrange_value_to_assign(row, col)
+        for new_value, no_conflict in domain_copy:
+            self.assign(row, col, new_value)
             result = self.backtrack_search()
             if result is True:
                 return True
             else:
-                self.undo_assign(row, col, domain_changes)
+                self.undo_assign(row, col, new_value)
 
     def is_answer(self):
         for row in range(9):
@@ -214,48 +176,49 @@ class SudokuPuzzle:
 class Sudoku(object):
     def __init__(self, puzzle):
         # you may add more attributes if you need
-        self.puzzle = puzzle  # self.puzzle is a list of lists
-        self.ans = puzzleCopy(puzzle)  # self.ans is a list of lists
-
-        self.depth = 0 # depth represent the number of cells that have been assigned value
+        self.puzzle = puzzle # self.puzzle is a list of lists
+        self.ans = puzzleCopy(puzzle) # self.ans is a list of lists
 
         self.matrix = self.initialize_cells(self.puzzle)
 
-        self.row_constraints = [set([1, 2, 3, 4, 5, 6, 7, 8, 9]) for i in
-                                range(9)]  # set of values that haven't appeared in each row
-        self.col_constraints = [set([1, 2, 3, 4, 5, 6, 7, 8, 9]) for i in
-                                range(9)]  # set of values that haven't appeared in each collumn
-        self.box_constraints = [[set([1, 2, 3, 4, 5, 6, 7, 8, 9]) for i in range(3)] for j in
-                                range(3)]  # set of values that haven't appeared in each 3x3 box
-
+        self.row_constraints = [set([1, 2, 3, 4, 5, 6, 7, 8, 9]) for i in range(9)] #set of values that haven't appeared in each row
+        self.col_constraints = [set([1, 2, 3, 4, 5, 6, 7, 8, 9]) for i in range(9)] #set of values that haven't appeared in each collumn
+        self.box_constraints = [[set([1, 2, 3, 4, 5, 6, 7, 8, 9]) for i in range(3)] for j in range(3)] #set of values that haven't appeared in each 3x3 box
+        
         self.initialize_constraints()
 
-    # initialize the value inside each cell with given input
-    def initialize_cells(self, puzzle):
+        self.time = 0
+        self.count = 0
+
+    #initialize the value inside each cell with given input
+    def initialize_cells(self,puzzle):
         matrix = [[Cell(0) for i in range(9)] for j in range(9)]
         for row in range(9):
             for col in range(9):
                 matrix[row][col].value = puzzle[row][col]
         return matrix
 
-    # initialize the row, collumn, and 3x3 box constraints of the Sudoku puzzle
+    #initialize the row, collumn, and 3x3 box constraints of the Sudoku puzzle
     def initialize_constraints(self):
         for row in range(9):
             for col in range(9):
                 value = self.matrix[row][col].value
                 if value != 0:
-                    self.depth += 1
                     self.row_constraints[row].remove(value)
                     self.col_constraints[col].remove(value)
-                    self.box_constraints[row // 3][col // 3].remove(value)
+                    self.box_constraints[row//3][col//3].remove(value)
+
+    # def generate_domains
 
     def solve(self):
         # TODO: Write your code here
         start_time = time.time()
-        sudokuPuzzle = SudokuPuzzle(self.matrix, self.row_constraints, self.col_constraints, self.box_constraints, self.depth)
+        sudokuPuzzle = SudokuPuzzle(self.matrix, self.row_constraints, self.col_constraints, self.box_constraints)
         sudokuPuzzle.backtrack_search()
         end_time = time.time()
-        print("Version: BackTracking Search + Reduced AC3 + Most Constrained + Most Constraining Variable")
+        self.time = end_time - start_time
+        self.count = sudokuPuzzle.count
+        print("Variant (C): Most Constrained Variable with Most Constraining Variable + Least Constraining Value + Forward Checking")
         print("Time elapsed " + str(end_time - start_time))
         print("Number of states traversed: " + str(sudokuPuzzle.count))
         return sudokuPuzzle.matrix

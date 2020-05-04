@@ -5,6 +5,8 @@ import time
 # Running script: given code can be run with the command:
 # python file.py, ./path/to/init_state.txt ./output/output.txt
 
+# Variant (E): Most Constrained Variable with Most Constraining Variable + modified AC-3
+
 def puzzleCopy(puzzle):
     puzzle_copy = [[puzzle[i][j] for j in xrange(9)]for i in xrange(9)]
     return puzzle_copy
@@ -112,7 +114,7 @@ class SudokuPuzzle:
                     domain_changes[(i, j)] = set([new_value])
 
         # only runs AC_3 at after every 20 assignments
-        if self.no_of_assignment % 20 == 0 or self.depth = 80:
+        if self.no_of_assignment % 20 == 0:
             self.AC_3(domain_changes)
 
     # unassign a value from a cell and revert changes to domains and neighbors set
@@ -230,6 +232,9 @@ class Sudoku(object):
 
         self.initialize_constraints()
 
+        self.time = 0
+        self.count = 0
+
     # initialize the value inside each cell with given input
     def initialize_cells(self, puzzle):
         matrix = [[Cell(0) for i in range(9)] for j in range(9)]
@@ -255,7 +260,9 @@ class Sudoku(object):
         sudokuPuzzle = SudokuPuzzle(self.matrix, self.row_constraints, self.col_constraints, self.box_constraints, self.depth)
         sudokuPuzzle.backtrack_search()
         end_time = time.time()
-        print("Version: BackTracking Search + Reduced AC3 + Most Constrained + Most Constraining Variable")
+        self.time = end_time - start_time
+        self.count = sudokuPuzzle.count
+        print("Variant (E): Most Constrained Variable with Most Constraining Variable + modified AC-3")
         print("Time elapsed " + str(end_time - start_time))
         print("Number of states traversed: " + str(sudokuPuzzle.count))
         return sudokuPuzzle.matrix

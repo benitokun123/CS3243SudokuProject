@@ -129,6 +129,9 @@ class Sudoku(object):
         
         self.initialize_constraints()
 
+        self.time = 0
+        self.count = 0
+
     #initialize the value inside each cell with given input
     def initialize_cells(self,puzzle):
         matrix = [[Cell(0) for i in range(9)] for j in range(9)]
@@ -156,7 +159,9 @@ class Sudoku(object):
         sudokuPuzzle = SudokuPuzzle(self.matrix, self.row_constraints, self.col_constraints, self.box_constraints)
         sudokuPuzzle.backtrack_search()
         end_time = time.time()
-        print("Version: BackTracking Search + Minimum Remaining Values Heuristics")
+        self.time = end_time - start_time
+        self.count = sudokuPuzzle.count
+        print("Variant (A): Most Constrained Variable + Forward Checking")
         print("Time elapsed " + str(end_time - start_time))
         print("Number of states traversed: " + str(sudokuPuzzle.count))
         return sudokuPuzzle.matrix

@@ -5,6 +5,8 @@ import time
 # Running script: given code can be run with the command:
 # python file.py, ./path/to/init_state.txt ./output/output.txt
 
+# Variant (D): Most Constrained Variable with Most Constraining Variable + AC-3
+
 def puzzleCopy(puzzle):
     puzzle_copy = [[puzzle[i][j] for j in xrange(9)]for i in xrange(9)]
     return puzzle_copy
@@ -26,9 +28,7 @@ class SudokuPuzzle:
         self.box_constraints = box_constraints
         self.initialize_domains()
         self.initialize_neighbors()
-        self.AC_3(dict())
         self.count = 0
-        self.no_of_assignment = 0
         self.depth = depth
 
     def __hash__(self):
@@ -72,8 +72,7 @@ class SudokuPuzzle:
                     neighbors.add((i, j))
         return neighbors
 
-    # choose the coordinate of the next cell to be assigned
-    # heuristics: Most Constrained Variable and Most Constraining Variable
+    #choose the coordinate of the next cell to be assigned
     def choose_cell_to_assign(self):
         min_domain = 100
         max_degree = -1
@@ -97,7 +96,6 @@ class SudokuPuzzle:
 
     # assign a value to a cell, update domains and neighbors set, and record domain changes
     def assign(self, row, col, new_value, domain_changes):
-        self.no_of_assignment += 1
         self.depth += 1
         self.matrix[row][col].value = new_value
 
@@ -111,18 +109,15 @@ class SudokuPuzzle:
                 else:
                     domain_changes[(i, j)] = set([new_value])
 
-        # only runs AC_3 at after every 20 assignments
-        if self.no_of_assignment % 20 == 0 or self.depth = 80:
-            self.AC_3(domain_changes)
+        self.AC_3(domain_changes)
 
     # unassign a value from a cell and revert changes to domains and neighbors set
     def undo_assign(self, row, col, domain_changes):
-        self.no_of_assignment -= 1
         self.depth -= 1
         self.matrix[row][col].value = 0
         for i, j in self.matrix[row][col].neighbors:
             self.matrix[i][j].neighbors.add((row, col))
-        self.undo_domain_changes(domain_changes)
+        self.undoAC_3(domain_changes)
 
     # check if the current sudoku state is solvable
     def is_valid(self):
@@ -182,7 +177,7 @@ class SudokuPuzzle:
             # print(str(row) + " " + str(col) + " " + str(neighbor_row) + " " + str(neighbor_col))
         return True
 
-    def undo_domain_changes(self, domain_changes):
+    def undoAC_3(self, domain_changes):
         for (row, col), changes in domain_changes.items():
             while changes:
                 self.matrix[row][col].domain.add(changes.pop())
@@ -230,6 +225,9 @@ class Sudoku(object):
 
         self.initialize_constraints()
 
+        self.time = 0
+        self.count = 0
+
     # initialize the value inside each cell with given input
     def initialize_cells(self, puzzle):
         matrix = [[Cell(0) for i in range(9)] for j in range(9)]
@@ -255,7 +253,9 @@ class Sudoku(object):
         sudokuPuzzle = SudokuPuzzle(self.matrix, self.row_constraints, self.col_constraints, self.box_constraints, self.depth)
         sudokuPuzzle.backtrack_search()
         end_time = time.time()
-        print("Version: BackTracking Search + Reduced AC3 + Most Constrained + Most Constraining Variable")
+        self.time = end_time - start_time
+        self.count = sudokuPuzzle.count
+        print("Variant (D): Most Constrained Variable with Most Constraining Variable + AC-3")
         print("Time elapsed " + str(end_time - start_time))
         print("Number of states traversed: " + str(sudokuPuzzle.count))
         return sudokuPuzzle.matrix
