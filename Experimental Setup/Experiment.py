@@ -9,13 +9,40 @@ import C as algoC
 import D as algoD
 import E as algoE
 
-def runTests():
-    files = ["input1.txt", "input2.txt", "input3.txt", "input4.txt", "input5.txt", "input6.txt"]
+def filePath(path):
+    fileList = []
+    for file in sorted(os.listdir(path)):
+        if file.endswith(".txt"):
+            fileList.append(os.path.join(path,file))
 
+    return fileList
+
+
+def getInputFiles():
+    dir_path = os.path.dirname(os.path.realpath('__file__'))
+    fileList = []
+    path = "/testcases/easy"
+    fileList.extend(filePath(dir_path + path))
+    path = "/testcases/moderate"
+    fileList.extend(filePath(dir_path + path))
+    path = "/testcases/difficult"
+    fileList.extend(filePath(dir_path + path))
+    
+    return fileList
+
+def runTests():
+    fileList = getInputFiles()
     listoflists = []
     no_test_case = 1
-    for file_name in files:
+    for file_name in fileList:
         sublist = [no_test_case]
+        if (no_test_case - 1) // 5 == 0:
+            sublist.append("easy")
+        elif (no_test_case - 1) // 5  == 1:
+            sublist.append("moderate")
+        else:
+            sublist.append("hard")
+        
         puzzle = extract_puzzle(file_name)
 
         a = algoA.Sudoku(puzzle)
@@ -68,7 +95,7 @@ if __name__ == "__main__":
      dir_path = os.path.dirname(os.path.realpath('__file__'))
      with open(dir_path + "/data.csv",'wb') as f: 
         w = csv.writer(f)
-        w.writerow(['Test case',
+        w.writerow(['Test case','Difficulty Level'
                     'Time (A)', 'Space (A)',
                     'Time (B)', 'Space (B)',
                     'Time (C)', 'Space (C)',

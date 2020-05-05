@@ -160,7 +160,7 @@ class Sudoku(object):
 
     # def generate_domains
 
-    def solve(self):
+     def solve(self):
         # TODO: Write your code here
         start_time = time.time()
         start_node = Node(self.puzzle)
