@@ -1,4 +1,7 @@
-*.txt
+output1.txt
+output2.txt
+output3.txt
+output4.txt
+.vscode/
 /Experimental Setup/*.pyc
-/Experimental Setup/testcases
 /Experimental Setup/*.csv
