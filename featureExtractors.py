@@ -152,6 +152,13 @@ def closestCapsule(pos, capsules, walls):
             fringe.append((nbr_x, nbr_y, dist+1))
     return None
 
+def findMaxTimeScared(ghostStates):
+    maxTime = 0
+    for s in ghostStates:
+        if s.scaredTimer > maxTime:
+            maxTime = s.scaredTimer
+    return maxTime
+
 
 class SimpleExtractor(FeatureExtractor):
     """
@@ -252,36 +259,32 @@ class NewExtractor(FeatureExtractor):
             distCapsule = closestCapsule(nextPos, capsules, walls)
             if distCapsule is not None:
                 features["closest-capsule"] = float(distCapsule) / (walls.width * walls.height)
+            
+        else:
+            dist = closestFood((next_x, next_y), food, walls)
+            if dist is not None:
+              # make the distance a number less than one otherwise the update
+              # will diverge wildly
+              features["closest-food"] = float(dist) / (walls.width * walls.height)
+              if food[next_x][next_y]:
+                features["eats-food"] = 1.0
 
-        dist = closestFood((next_x, next_y), food, walls)
-        if dist is not None:
-            # make the distance a number less than one otherwise the update
-            # will diverge wildly
-            features["closest-food"] = float(dist) / (walls.width * walls.height)
+        if hasScared:
+            distScaredGhost = closestScaredGhost(nextPos, ghostStates, walls)
+            if distScaredGhost is not None:
+                features["closest-scared-ghost"] = float(distScaredGhost) / (walls.width * walls.height)
+            for g, s in zip(ghosts, ghostStates):
+                if nextPos == g and s.scaredTimer > 0:
+                    features["eat-scared-ghost"] = 1.0
+            features["closest-capsule"] = 0
 
-        # count the number of ghosts 1-step away that are not scared
         features["#-of-ghosts-1-step-away"] = 0
         for g, s in zip(ghosts, ghostStates):
             if s.scaredTimer == 0:
                 features["#-of-ghosts-1-step-away"] += nextPos in Actions.getLegalNeighbors(g, walls)
-        
-        survivalMode = features["#-of-ghosts-1-step-away"]
+        for g, s in zip(ghosts, ghostStates):
+            if nextPos == g and s.scaredTimer == 0:
+                features["die-to-ghost"] = 1.0
 
-        if not survivalMode:
-            if hasScared:
-                distScaredGhost = closestScaredGhost(nextPos, ghostStates, walls)
-                if distScaredGhost is not None:
-                    features["closest-scared-ghost"] = float(distScaredGhost) / (walls.width * walls.height)
-                for g, s in zip(ghosts, ghostStates):
-                    if nextPos == g and s.scaredTimer > 0:
-                        features["eat-scared-ghost"] = 1.0
-                features["closest-capsule"] = 0
-                features["closest-food"] = 0
-            
-            elif food[next_x][next_y]:
-                features["eats-food"] = 1.0
-                if nextPos in capsules:
-                    features["eat=capsules"] = 1.0
-        
         features.divideAll(10.0)
         return features
