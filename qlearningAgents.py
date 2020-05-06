@@ -138,7 +138,7 @@ class QLearningAgent(ReinforcementAgent):
           it will be called on your behalf
         """
         "*** YOUR CODE HERE ***"
-        newQ = reward + self.discount * self.getValue(nextState)
+        newQ = (1 - self.alpha) * self.getQValue(state,action) + self.alpha * (reward + self.discount * self.getValue(nextState))
         self.QValues[(state, action)] = newQ
         self.statesSeen.add(state)
         
@@ -205,6 +205,9 @@ class ApproximateQAgent(PacmanQAgent):
           where * is the dotProduct operator
         """
         "*** YOUR CODE HERE ***"
+        featVector = self.featExtractor.getFeatures(state, action)
+        return self.weights * featVector
+
         util.raiseNotDefined()
 
     def update(self, state, action, nextState, reward):
@@ -212,6 +215,13 @@ class ApproximateQAgent(PacmanQAgent):
            Should update your weights based on transition
         """
         "*** YOUR CODE HERE ***"
+        newQ = reward + self.discount * self.getValue(nextState)
+        difference = newQ - self.getQValue(state, action)
+
+        for key, value in self.featExtractor.getFeatures(state, action).items():
+          self.weights[key] += self.alpha * difference * value
+
+        return None
         util.raiseNotDefined()
 
     def final(self, state):
@@ -223,4 +233,6 @@ class ApproximateQAgent(PacmanQAgent):
         if self.episodesSoFar == self.numTraining:
             # you might want to print your weights here for debugging
             "*** YOUR CODE HERE ***"
+            print(self.weights)
             pass
+
